@@ -19,7 +19,6 @@ class MainActivity : AppCompatActivity() {
     private lateinit var imageProcessor: ImageProcessor
 
     private var originalMat: Mat? = null
-    private var currentBitmap: Bitmap? = null
 
     companion object {
         private const val REPETITIONS = 500
@@ -69,24 +68,20 @@ class MainActivity : AppCompatActivity() {
         try {
             assets.open(TEST_IMAGE).use { inputStream ->
                 val bitmap = BitmapFactory.decodeStream(inputStream)
-                displayAndStoreBitmap(bitmap)
-                convertBitmapToMat(bitmap)
+                val src = convertBitmapToMat(bitmap)
+                originalMat = src
+                displayProcessedImage(src)
             }
         } catch (e: Exception) {
             showToast("Error loading image: ${e.message}")
         }
     }
 
-    private fun displayAndStoreBitmap(bitmap: Bitmap) {
-        currentBitmap = bitmap
-        viewBinding.imageView.setImageBitmap(bitmap)
-    }
-
-    private fun convertBitmapToMat(bitmap: Bitmap) {
-        originalMat = Mat(bitmap.height, bitmap.width, CvType.CV_8UC3).also { mat ->
+    private fun convertBitmapToMat(bitmap: Bitmap): Mat {
+        return Mat(bitmap.height, bitmap.width, CvType.CV_8UC1).also { mat ->
             bitmap.copy(Bitmap.Config.ARGB_8888, true).let { tempBitmap ->
                 Utils.bitmapToMat(tempBitmap, mat)
-                Imgproc.cvtColor(mat, mat, Imgproc.COLOR_RGBA2BGR)
+                Imgproc.cvtColor(mat, mat, Imgproc.COLOR_RGBA2GRAY)
             }
         }
     }
@@ -104,20 +99,22 @@ class MainActivity : AppCompatActivity() {
                 return
             }
 
-        val processedMat = Mat()
+        val src = Mat()
+        originalMat?.copyTo(src)
+        val dst = Mat()
+
         val durations = mutableListOf<Long>()
 
         repeat(REPETITIONS) {
-            originalMat?.copyTo(processedMat)
             val duration = measureOperationTime {
-                imageProcessor.applyOperation(processedMat, operation)
+                imageProcessor.applyOperation(src, dst, operation)
             }
             durations.add(duration)
         }
 
         val metrics = PerformanceMetrics(durations)
         viewBinding.textViewTime.text = metrics.toString()
-        displayProcessedImage(processedMat)
+        displayProcessedImage(dst)
     }
 
     private fun measureOperationTime(block: () -> Unit): Long {
@@ -126,13 +123,20 @@ class MainActivity : AppCompatActivity() {
         return System.nanoTime() - start
     }
 
-    private fun displayProcessedImage(processedMat: Mat) {
+    private fun displayProcessedImage(mat: Mat) {
+        val processedMat = Mat()
+        mat.copyTo(processedMat)
+        processedMat.convertTo(processedMat, CvType.CV_8U)
+        assert(processedMat.channels() == 1)
+
         Imgproc.cvtColor(processedMat, processedMat, Imgproc.COLOR_BGR2RGBA)
+
         val resultBitmap = Bitmap.createBitmap(
             processedMat.cols(),
             processedMat.rows(),
             Bitmap.Config.ARGB_8888
         )
+
         Utils.matToBitmap(processedMat, resultBitmap)
         viewBinding.imageView.setImageBitmap(resultBitmap)
     }

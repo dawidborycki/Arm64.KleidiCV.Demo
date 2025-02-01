@@ -8,31 +8,32 @@ import org.opencv.imgproc.Imgproc
 
 enum class ImageOperation(val displayName: String) {
     GAUSSIAN_BLUR("Gaussian Blur") {
-        override fun apply(mat: Mat) {
-            Imgproc.GaussianBlur(mat, mat, Size(5.0, 5.0), 5.0)
+        override fun apply(src: Mat, dst: Mat) {
+            Imgproc.GaussianBlur(src, dst, Size(7.0, 7.0), 0.0)
         }
     },
     SOBEL("Sobel") {
-        override fun apply(mat: Mat) {
-            Imgproc.Sobel(mat, mat, CvType.CV_8U, 1, 1)
+        override fun apply(src: Mat, dst: Mat) {
+            Imgproc.Sobel(src, dst, CvType.CV_16S, 1, 0, 3
+                , 1.0, 0.0, Core.BORDER_REPLICATE)
         }
     },
     RESIZE("Resize") {
-        override fun apply(mat: Mat) {
+        override fun apply(src: Mat, dst: Mat) {
             Imgproc.resize(
-                mat,
-                mat,
-                Size(mat.cols() / 2.0, mat.rows() / 2.0)
+                src,
+                dst,
+                Size(src.cols() / 2.0, src.rows() / 2.0)
             )
         }
     },
     ROTATE_90("Rotate 90°") {
-        override fun apply(mat: Mat) {
-            Core.rotate(mat, mat, Core.ROTATE_90_CLOCKWISE)
+        override fun apply(src: Mat, dst: Mat) {
+            Core.rotate(src, dst, Core.ROTATE_90_CLOCKWISE)
         }
     };
 
-    abstract fun apply(mat: Mat)
+    abstract fun apply(src: Mat, dst: Mat)
 
     companion object {
         fun fromDisplayName(name: String): ImageOperation? =
